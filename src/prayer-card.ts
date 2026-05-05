@@ -268,19 +268,22 @@ class PrayerHorizonCard extends LitElement {
     const ny = Math.sin(rad) * 28;
     return html`
       <div class="qibla-section">
-        <svg viewBox="-35 -35 70 70" class="compass-svg">
-          <circle cx="0" cy="0" r="33" fill="none" stroke="var(--divider-color, #e0e0e0)" stroke-width="1.5"/>
-          ${[['N', 0, -26], ['E', 26, 4], ['S', 0, 26], ['W', -26, 4]].map(([l, x, y]) => html`
-            <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle"
-              font-size="8" font-weight="bold" fill="var(--secondary-text-color, #757575)">${l}</text>
-          `)}
-          <line x1="0" y1="0" x2="${nx}" y2="${ny}" stroke="#c62828" stroke-width="3" stroke-linecap="round"/>
-          <circle cx="${nx}" cy="${ny}" r="4" fill="#c62828"/>
-          <circle cx="0" cy="0" r="3" fill="#ef5350"/>
-        </svg>
-        <div class="qibla-info">
-          <span class="qibla-deg">${this._qibla.toFixed(1)}°</span>
-          <span class="qibla-dir">${cardinalDir(this._qibla)}</span>
+        <span class="section-label">${this._('Qiblat')}</span>
+        <div class="qibla-content">
+          <svg viewBox="-35 -35 70 70" class="compass-svg">
+            <circle cx="0" cy="0" r="33" fill="none" stroke="var(--divider-color, #e0e0e0)" stroke-width="1.5"/>
+            ${[['N', 0, -26], ['E', 26, 4], ['S', 0, 26], ['W', -26, 4]].map(([l, x, y]) => html`
+              <text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle"
+                font-size="8" font-weight="bold" fill="var(--secondary-text-color, #757575)">${l}</text>
+            `)}
+            <line x1="0" y1="0" x2="${nx}" y2="${ny}" stroke="#c62828" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="${nx}" cy="${ny}" r="4" fill="#c62828"/>
+            <circle cx="0" cy="0" r="3" fill="#ef5350"/>
+          </svg>
+          <div class="qibla-info">
+            <span class="qibla-deg">${this._qibla.toFixed(1)}°</span>
+            <span class="qibla-dir">${cardinalDir(this._qibla)}</span>
+          </div>
         </div>
       </div>
     `;
@@ -410,10 +413,16 @@ class PrayerHorizonCard extends LitElement {
     /* Qibla */
     .qibla-section {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 12px;
       padding: 8px 4px 0;
       border-top: 1px solid var(--divider-color, rgba(0,0,0,0.06));
+    }
+    .qibla-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
     }
     .compass-svg { width: 70px; height: 70px; flex-shrink: 0; }
     .qibla-info { display: flex; flex-direction: column; }

@@ -649,7 +649,8 @@ var TRANSLATIONS = {
     "Now": "Now",
     "Hijri Date": "Hijri Date",
     "Next Events": "Next Events",
-    "Qibla Direction": "Qibla Direction"
+    "Qibla Direction": "Qibla Direction",
+    "Qiblat": "Qiblat"
   },
   fr: {
     "Fajr": "Fajr",
@@ -661,7 +662,8 @@ var TRANSLATIONS = {
     "Now": "Maintenant",
     "Hijri Date": "Date Hijri",
     "Next Events": "Prochains \xE9v\xE9nements",
-    "Qibla Direction": "Direction Qibla"
+    "Qibla Direction": "Direction Qibla",
+    "Qiblat": "Qiblat"
   },
   id: {
     "Fajr": "Fajr",
@@ -673,7 +675,8 @@ var TRANSLATIONS = {
     "Now": "Sekarang",
     "Hijri Date": "Tanggal Hijriah",
     "Next Events": "Acara Berikutnya",
-    "Qibla Direction": "Arah Kiblat"
+    "Qibla Direction": "Arah Kiblat",
+    "Qiblat": "Kiblat"
   },
   ms: {
     "Fajr": "Fajr",
@@ -685,7 +688,8 @@ var TRANSLATIONS = {
     "Now": "Sekarang",
     "Hijri Date": "Tarikh Hijri",
     "Next Events": "Acara Akan Datang",
-    "Qibla Direction": "Arah Kiblat"
+    "Qibla Direction": "Arah Kiblat",
+    "Qiblat": "Kiblat"
   },
   de: {
     "Fajr": "Fadschr",
@@ -697,7 +701,8 @@ var TRANSLATIONS = {
     "Now": "Jetzt",
     "Hijri Date": "Hidschri-Datum",
     "Next Events": "N\xE4chste Ereignisse",
-    "Qibla Direction": "Qibla-Richtung"
+    "Qibla Direction": "Qibla-Richtung",
+    "Qiblat": "Qibla"
   },
   tr: {
     "Fajr": "Sabah (Fajr)",
@@ -709,7 +714,8 @@ var TRANSLATIONS = {
     "Now": "\u015Eimdi",
     "Hijri Date": "Hicri Tarih",
     "Next Events": "Sonraki Etkinlikler",
-    "Qibla Direction": "K\u0131ble Y\xF6n\xFC"
+    "Qibla Direction": "K\u0131ble Y\xF6n\xFC",
+    "Qiblat": "K\u0131ble"
   },
   ar: {
     "Fajr": "\u0627\u0644\u0641\u062C\u0631",
@@ -721,7 +727,8 @@ var TRANSLATIONS = {
     "Now": "\u0627\u0644\u0622\u0646",
     "Hijri Date": "\u0627\u0644\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0647\u062C\u0631\u064A",
     "Next Events": "\u0627\u0644\u0623\u062D\u062F\u0627\u062B \u0627\u0644\u0642\u0627\u062F\u0645\u0629",
-    "Qibla Direction": "\u0627\u062A\u062C\u0627\u0647 \u0627\u0644\u0642\u0628\u0644\u0629"
+    "Qibla Direction": "\u0627\u062A\u062C\u0627\u0647 \u0627\u0644\u0642\u0628\u0644\u0629",
+    "Qiblat": "\u0627\u0644\u0642\u0628\u0644\u0629"
   },
   zh: {
     "Fajr": "\u6668\u793C (Fajr)",
@@ -733,7 +740,8 @@ var TRANSLATIONS = {
     "Now": "\u73B0\u5728",
     "Hijri Date": "\u5E0C\u5409\u83B1\u65E5\u671F",
     "Next Events": "\u4E0B\u4E00\u4E2A\u4E8B\u4EF6",
-    "Qibla Direction": "\u671D\u5411"
+    "Qibla Direction": "\u671D\u5411",
+    "Qiblat": "\u671D\u5411"
   },
   it: {
     "Fajr": "Fajr",
@@ -745,7 +753,8 @@ var TRANSLATIONS = {
     "Now": "Ora",
     "Hijri Date": "Data Hijri",
     "Next Events": "Prossimi Eventi",
-    "Qibla Direction": "Direzione Qibla"
+    "Qibla Direction": "Direzione Qibla",
+    "Qiblat": "Qibla"
   },
   es: {
     "Fajr": "Fayr",
@@ -757,7 +766,8 @@ var TRANSLATIONS = {
     "Now": "Ahora",
     "Hijri Date": "Fecha Hijri",
     "Next Events": "Pr\xF3ximos Eventos",
-    "Qibla Direction": "Direcci\xF3n Qibla"
+    "Qibla Direction": "Direcci\xF3n Qibla",
+    "Qiblat": "Qibla"
   },
   ur: {
     "Fajr": "\u0641\u062C\u0631",
@@ -769,7 +779,8 @@ var TRANSLATIONS = {
     "Now": "\u0627\u0628\u06BE\u06CC",
     "Hijri Date": "\u06C1\u062C\u0631\u06CC \u062A\u0627\u0631\u06CC\u062E",
     "Next Events": "\u0627\u06AF\u0644\u06D2 \u0648\u0627\u0642\u0639\u0627\u062A",
-    "Qibla Direction": "\u0642\u0628\u0644\u06C1 \u06A9\u06CC \u0633\u0645\u062A"
+    "Qibla Direction": "\u0642\u0628\u0644\u06C1 \u06A9\u06CC \u0633\u0645\u062A",
+    "Qiblat": "\u0642\u0628\u0644\u06C1"
   },
   fa: {
     "Fajr": "\u0641\u062C\u0631",
@@ -781,7 +792,8 @@ var TRANSLATIONS = {
     "Now": "\u0627\u06A9\u0646\u0648\u0646",
     "Hijri Date": "\u062A\u0627\u0631\u06CC\u062E \u0647\u062C\u0631\u06CC",
     "Next Events": "\u0631\u0648\u06CC\u062F\u0627\u062F\u0647\u0627\u06CC \u0628\u0639\u062F\u06CC",
-    "Qibla Direction": "\u062C\u0647\u062A \u0642\u0628\u0644\u0647"
+    "Qibla Direction": "\u062C\u0647\u062A \u0642\u0628\u0644\u0647",
+    "Qiblat": "\u0642\u0628\u0644\u0647"
   }
 };
 
@@ -1013,19 +1025,22 @@ var PrayerHorizonCard = class extends i4 {
     const ny = Math.sin(rad) * 28;
     return b2`
       <div class="qibla-section">
-        <svg viewBox="-35 -35 70 70" class="compass-svg">
-          <circle cx="0" cy="0" r="33" fill="none" stroke="var(--divider-color, #e0e0e0)" stroke-width="1.5"/>
-          ${[["N", 0, -26], ["E", 26, 4], ["S", 0, 26], ["W", -26, 4]].map(([l3, x2, y3]) => b2`
-            <text x="${x2}" y="${y3}" text-anchor="middle" dominant-baseline="middle"
-              font-size="8" font-weight="bold" fill="var(--secondary-text-color, #757575)">${l3}</text>
-          `)}
-          <line x1="0" y1="0" x2="${nx}" y2="${ny}" stroke="#c62828" stroke-width="3" stroke-linecap="round"/>
-          <circle cx="${nx}" cy="${ny}" r="4" fill="#c62828"/>
-          <circle cx="0" cy="0" r="3" fill="#ef5350"/>
-        </svg>
-        <div class="qibla-info">
-          <span class="qibla-deg">${this._qibla.toFixed(1)}°</span>
-          <span class="qibla-dir">${cardinalDir(this._qibla)}</span>
+        <span class="section-label">${this._("Qiblat")}</span>
+        <div class="qibla-content">
+          <svg viewBox="-35 -35 70 70" class="compass-svg">
+            <circle cx="0" cy="0" r="33" fill="none" stroke="var(--divider-color, #e0e0e0)" stroke-width="1.5"/>
+            ${[["N", 0, -26], ["E", 26, 4], ["S", 0, 26], ["W", -26, 4]].map(([l3, x2, y3]) => b2`
+              <text x="${x2}" y="${y3}" text-anchor="middle" dominant-baseline="middle"
+                font-size="8" font-weight="bold" fill="var(--secondary-text-color, #757575)">${l3}</text>
+            `)}
+            <line x1="0" y1="0" x2="${nx}" y2="${ny}" stroke="#c62828" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="${nx}" cy="${ny}" r="4" fill="#c62828"/>
+            <circle cx="0" cy="0" r="3" fill="#ef5350"/>
+          </svg>
+          <div class="qibla-info">
+            <span class="qibla-deg">${this._qibla.toFixed(1)}°</span>
+            <span class="qibla-dir">${cardinalDir(this._qibla)}</span>
+          </div>
         </div>
       </div>
     `;
@@ -1152,10 +1167,16 @@ PrayerHorizonCard.styles = i`
     /* Qibla */
     .qibla-section {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 12px;
       padding: 8px 4px 0;
       border-top: 1px solid var(--divider-color, rgba(0,0,0,0.06));
+    }
+    .qibla-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
     }
     .compass-svg { width: 70px; height: 70px; flex-shrink: 0; }
     .qibla-info { display: flex; flex-direction: column; }
