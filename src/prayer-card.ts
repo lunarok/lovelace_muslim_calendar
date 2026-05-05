@@ -49,7 +49,7 @@ function cardinallyDegrees(deg: number): string {
 // ============================================================================
 
 @customElement('prayer-horizon-card')
-export class PrayerHorizonCard extends LitElement {
+class PrayerHorizonCard extends LitElement {
 
   @property({ attribute: false }) public hass: any;
 
