@@ -211,18 +211,15 @@ class PrayerHorizonCard extends LitElement {
   }
 
   private _renderHorizonArc() {
-    const prayers = [
-      { key: 'fajr', label: this._('Fajr'), time: this.prayerTimes['fajr'] },
-      { key: 'shuruq', label: this._('Sunrise'), time: this.prayerTimes['sunrise'] },
-      { key: 'dhuhr', label: this._('Dhuhr'), time: this.prayerTimes['dhuhr'] },
-      { key: 'asr', label: this._('Asr'), time: this.prayerTimes['asr'] },
-      { key: 'maghrib', label: this._('Maghrib'), time: this.prayerTimes['maghrib'] },
-      { key: 'isha', label: this._('Isha'), time: this.prayerTimes['isha'] },
-    ];
+    // Build prayer list dynamically from config to ensure keys match prayerTimes
+    const prayers = (this._config.prayer_entities || []).map((p, i) => {
+      const key = p.label?.toLowerCase() || p.entity.split('_').pop() || p.entity;
+      return { key, label: p.label || key, time: this.prayerTimes[key] || '--:--', index: i };
+    });
 
     const prayerMinutes = prayers.map(p => ({
       ...p,
-      minutes: timeToMinutes(p.time || '00:00')
+      minutes: timeToMinutes(p.time)
     }));
 
     const now = this.currentTime;
@@ -265,7 +262,7 @@ class PrayerHorizonCard extends LitElement {
                 cx="${toX(p.minutes)}"
                 cy="${toY(p.minutes, midY, amplitude)}"
                 r="6"
-                fill="${i === 0 ? '#7B1FA2' : i === 4 ? '#E65100' : '#1565C0'}"
+                fill="${p.index === 0 ? '#7B1FA2' : p.index === prayers.length - 2 ? '#E65100' : '#1565C0'}"
                 stroke="white"
                 stroke-width="1.5"
               />
@@ -325,12 +322,17 @@ class PrayerHorizonCard extends LitElement {
     if (this.nextEvents.length === 0) return html``;
     return html`
       <div class="events-bar">
-        ${this.nextEvents.map(ev => html`
-          <div class="event-item">
-            <span class="event-name">${ev.name}</span>
-            ${ev.date ? html`<span class="event-date">${ev.date}</span>` : ''}
-          </div>
-        `)}
+        <div class="events-header">
+          <span class="events-title">${this._('Next Events')}</span>
+        </div>
+        <div class="events-list">
+          ${this.nextEvents.map(ev => html`
+            <div class="event-item">
+              <span class="event-name">${ev.name}</span>
+              ${ev.date ? html`<span class="event-date">${ev.date}</span>` : ''}
+            </div>
+          `)}
+        </div>
       </div>
     `;
   }
@@ -429,10 +431,14 @@ class PrayerHorizonCard extends LitElement {
 
     .events-bar {
       display: flex;
-      gap: 12px;
+      flex-direction: column;
       padding: 8px 4px;
       border-top: 1px solid rgba(0,0,0,0.06);
+      gap: 6px;
     }
+    .events-header { display: flex; align-items: center; }
+    .events-title { font-size: 10px; color: var(--card-text-color); opacity: 0.7; text-transform: uppercase; font-weight: 500; }
+    .events-list { display: flex; gap: 12px; }
     .event-item { display: flex; flex-direction: column; flex: 1; }
     .event-name { font-size: 11px; font-weight: 600; color: var(--card-text-color); }
     .event-date { font-size: 9px; color: var(--card-text-color); opacity: 0.7; }

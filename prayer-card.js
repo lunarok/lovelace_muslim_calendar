@@ -958,17 +958,13 @@ var PrayerHorizonCard = class extends i4 {
     `;
   }
   _renderHorizonArc() {
-    const prayers = [
-      { key: "fajr", label: this._("Fajr"), time: this.prayerTimes["fajr"] },
-      { key: "shuruq", label: this._("Sunrise"), time: this.prayerTimes["sunrise"] },
-      { key: "dhuhr", label: this._("Dhuhr"), time: this.prayerTimes["dhuhr"] },
-      { key: "asr", label: this._("Asr"), time: this.prayerTimes["asr"] },
-      { key: "maghrib", label: this._("Maghrib"), time: this.prayerTimes["maghrib"] },
-      { key: "isha", label: this._("Isha"), time: this.prayerTimes["isha"] }
-    ];
+    const prayers = (this._config.prayer_entities || []).map((p3, i5) => {
+      const key = p3.label?.toLowerCase() || p3.entity.split("_").pop() || p3.entity;
+      return { key, label: p3.label || key, time: this.prayerTimes[key] || "--:--", index: i5 };
+    });
     const prayerMinutes = prayers.map((p3) => ({
       ...p3,
-      minutes: timeToMinutes(p3.time || "00:00")
+      minutes: timeToMinutes(p3.time)
     }));
     const now = this.currentTime;
     const viewStart = now - 120;
@@ -1006,7 +1002,7 @@ var PrayerHorizonCard = class extends i4 {
                 cx="${toX(p3.minutes)}"
                 cy="${toY(p3.minutes, midY, amplitude)}"
                 r="6"
-                fill="${i5 === 0 ? "#7B1FA2" : i5 === 4 ? "#E65100" : "#1565C0"}"
+                fill="${p3.index === 0 ? "#7B1FA2" : p3.index === prayers.length - 2 ? "#E65100" : "#1565C0"}"
                 stroke="white"
                 stroke-width="1.5"
               />
@@ -1065,12 +1061,17 @@ var PrayerHorizonCard = class extends i4 {
       return b2``;
     return b2`
       <div class="events-bar">
-        ${this.nextEvents.map((ev) => b2`
-          <div class="event-item">
-            <span class="event-name">${ev.name}</span>
-            ${ev.date ? b2`<span class="event-date">${ev.date}</span>` : ""}
-          </div>
-        `)}
+        <div class="events-header">
+          <span class="events-title">${this._("Next Events")}</span>
+        </div>
+        <div class="events-list">
+          ${this.nextEvents.map((ev) => b2`
+            <div class="event-item">
+              <span class="event-name">${ev.name}</span>
+              ${ev.date ? b2`<span class="event-date">${ev.date}</span>` : ""}
+            </div>
+          `)}
+        </div>
       </div>
     `;
   }
@@ -1164,10 +1165,14 @@ PrayerHorizonCard.styles = i`
 
     .events-bar {
       display: flex;
-      gap: 12px;
+      flex-direction: column;
       padding: 8px 4px;
       border-top: 1px solid rgba(0,0,0,0.06);
+      gap: 6px;
     }
+    .events-header { display: flex; align-items: center; }
+    .events-title { font-size: 10px; color: var(--card-text-color); opacity: 0.7; text-transform: uppercase; font-weight: 500; }
+    .events-list { display: flex; gap: 12px; }
     .event-item { display: flex; flex-direction: column; flex: 1; }
     .event-name { font-size: 11px; font-weight: 600; color: var(--card-text-color); }
     .event-date { font-size: 9px; color: var(--card-text-color); opacity: 0.7; }
