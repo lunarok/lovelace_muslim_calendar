@@ -1,14 +1,5 @@
 {
   "name": "Prayer Horizon Card",
-  "description": "Lovelace card showing prayer times on a horizon arc with Hijri date, next events, and Qibla compass. Works with Muslim Calendar plugin.",
-  "filename": "dist/prayer-card.js",
-  "integration_type": "lovelace",
-  "authors": [
-    {
-      "name": "Cedric (Lunarok)",
-      "url": "https://github.com/lunarok"
-    }
-  ],
-  "codeowners": ["@lunarok"],
-  "homeassistant": "2024.0.0"
+  "render_readme": true,
+  "filename": "dist/prayer-card.js"
 }
