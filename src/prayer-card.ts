@@ -211,7 +211,6 @@ class PrayerHorizonCard extends LitElement {
   }
 
   private _renderHorizonArc() {
-    // Build prayer list dynamically from config to ensure keys match prayerTimes
     const prayers = (this._config.prayer_entities || []).map((p, i) => {
       const key = p.label?.toLowerCase() || p.entity.split('_').pop() || p.entity;
       return { key, label: p.label || key, time: this.prayerTimes[key] || '--:--', index: i };
@@ -222,82 +221,76 @@ class PrayerHorizonCard extends LitElement {
       minutes: timeToMinutes(p.time)
     }));
 
-    const now = this.currentTime;
-    const viewStart = now - 120;
-    const viewEnd = now + 120;
+    // Use the full prayer day span (first to last prayer) as the viewport,
+    // so all markers are always visible regardless of the current time.
+    const validMinutes = prayerMinutes.map(p => p.minutes).filter(m => m > 0);
+    const spanStart = validMinutes.length ? Math.min(...validMinutes) - 20 : 240;
+    const spanEnd   = validMinutes.length ? Math.max(...validMinutes) + 20 : 1380;
 
-    const toX = (mins: number): number => ((mins - viewStart) / (viewEnd - viewStart)) * 360;
-    const toY = (mins: number, base: number, amplitude: number): number => {
-      return base - amplitude * Math.sin(((mins - viewStart) / (viewEnd - viewStart)) * Math.PI);
+    const toX = (mins: number): number => ((mins - spanStart) / (spanEnd - spanStart)) * 320 + 20;
+    const toY = (mins: number): number => {
+      const t = (mins - spanStart) / (spanEnd - spanStart);
+      return 95 - 65 * Math.sin(t * Math.PI);
     };
 
-    const midY = 90;
-    const amplitude = 60;
-
+    const now = this.currentTime;
     const nowX = toX(now);
+    const nowVisible = nowX >= 10 && nowX <= 350;
+
+    // Active prayer: the last one whose time has passed
+    const activePrayer = prayerMinutes.reduce<number>((acc, p, i) =>
+      p.minutes > 0 && p.minutes <= now ? i : acc, -1);
 
     return html`
       <div class="horizon-section">
-        <svg viewBox="0 0 360 120" class="horizon-svg">
-          <defs>
-            <linearGradient id="dayGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="var(--card-bg-day, #f0f4ff)"/>
-              <stop offset="100%" stop-color="var(--card-bg-horizon, #ffe0b2)"/>
-            </linearGradient>
-          </defs>
-
-          <!-- Horizon arc -->
+        <svg viewBox="0 0 360 110" class="horizon-svg">
+          <!-- Horizon arc path through all prayer positions -->
           <path
-            d="M 30,100 Q 90,30 180,25 Q 270,30 330,100"
+            d="M ${toX(spanStart)},95 ${prayerMinutes
+              .filter(p => p.minutes > 0)
+              .map(p => `L ${toX(p.minutes)},${toY(p.minutes)}`)
+              .join(' ')} L ${toX(spanEnd)},95"
             fill="none"
             stroke="var(--card-arc-color, #90caf9)"
             stroke-width="2"
             stroke-dasharray="4,2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           />
 
           <!-- Prayer time markers -->
-          ${prayerMinutes.map((p, i) => html`
-            <g class="prayer-marker">
-              <circle
-                cx="${toX(p.minutes)}"
-                cy="${toY(p.minutes, midY, amplitude)}"
-                r="6"
-                fill="${p.index === 0 ? '#7B1FA2' : p.index === prayers.length - 2 ? '#E65100' : '#1565C0'}"
-                stroke="white"
-                stroke-width="1.5"
-              />
-              <line
-                x1="${toX(p.minutes)}"
-                y1="${toY(p.minutes, midY, amplitude) + 7}"
-                x2="${toX(p.minutes)}"
-                y2="115"
-                stroke="var(--card-line-color, #90caf9)"
-                stroke-width="1"
-                stroke-dasharray="2,2"
-              />
-              <text
-                x="${toX(p.minutes)}"
-                y="118"
-                text-anchor="middle"
-                font-size="8"
-                fill="var(--card-text-color, #37474f)"
-              >${p.label}</text>
-              <text
-                x="${toX(p.minutes)}"
-                y="${toY(p.minutes, midY, amplitude) - 12}"
-                text-anchor="middle"
-                font-size="7"
-                fill="var(--card-time-color, #1565C0)"
-                font-weight="bold"
-              >${p.time || '--:--'}</text>
-            </g>
-          `)}
+          ${prayerMinutes.map((p, i) => {
+            if (p.minutes === 0) return html``;
+            const x = toX(p.minutes);
+            const y = toY(p.minutes);
+            const isActive = i === activePrayer;
+            const color = i === 0 ? '#7B1FA2' : i === prayerMinutes.length - 1 ? '#1a237e' : '#1565C0';
+            return html`
+              <g class="prayer-marker">
+                <circle cx="${x}" cy="${y}" r="${isActive ? 7 : 5}"
+                  fill="${isActive ? '#e65100' : color}"
+                  stroke="white" stroke-width="1.5"/>
+                <line x1="${x}" y1="${y + (isActive ? 8 : 6)}"
+                  x2="${x}" y2="100"
+                  stroke="var(--card-line-color, #90caf9)"
+                  stroke-width="1" stroke-dasharray="2,2"/>
+                <text x="${x}" y="108" text-anchor="middle" font-size="7.5"
+                  fill="${isActive ? '#e65100' : 'var(--card-text-color, #37474f)'}"
+                  font-weight="${isActive ? 'bold' : 'normal'}"
+                >${p.label}</text>
+                <text x="${x}" y="${y - 8}" text-anchor="middle" font-size="7"
+                  fill="${isActive ? '#e65100' : 'var(--card-time-color, #1565C0)'}"
+                  font-weight="bold"
+                >${p.time}</text>
+              </g>
+            `;
+          })}
 
           <!-- Now indicator -->
-          ${nowX >= 30 && nowX <= 330 ? html`
-            <line x1="${nowX}" y1="10" x2="${nowX}" y2="115" stroke="var(--card-now-color, #f44336)" stroke-width="2"/>
-            <circle cx="${nowX}" cy="10" r="4" fill="var(--card-now-color, #f44336)"/>
-            <text x="${nowX}" y="8" text-anchor="middle" font-size="6" fill="var(--card-now-color, #f44336)">${this._('Now')}</text>
+          ${nowVisible ? html`
+            <line x1="${nowX}" y1="5" x2="${nowX}" y2="100"
+              stroke="var(--card-now-color, #f44336)" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <circle cx="${nowX}" cy="5" r="3" fill="var(--card-now-color, #f44336)"/>
           ` : ''}
         </svg>
       </div>
