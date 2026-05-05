@@ -804,10 +804,24 @@ var DEGREES = {
   315: "NW",
   337.5: "NNW"
 };
-function timeToMinutes(timeStr) {
-  if (!timeStr || timeStr === "--:--")
+function parseStateToHHMM(state) {
+  if (!state || state === "unavailable" || state === "unknown")
+    return "--:--";
+  if (state.includes("T")) {
+    const d3 = new Date(state);
+    if (!isNaN(d3.getTime())) {
+      return `${String(d3.getHours()).padStart(2, "0")}:${String(d3.getMinutes()).padStart(2, "0")}`;
+    }
+  }
+  const parts = state.split(":");
+  if (parts.length >= 2)
+    return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
+  return "--:--";
+}
+function timeToMinutes(hhmm) {
+  if (!hhmm || hhmm === "--:--")
     return 0;
-  const parts = timeStr.split(":");
+  const parts = hhmm.split(":");
   return parseInt(parts[0]) * 60 + parseInt(parts[1]);
 }
 function cardinallyDegrees(deg) {
@@ -883,7 +897,7 @@ var PrayerHorizonCard = class extends i4 {
         const stateObj = hass.states[p3.entity];
         if (stateObj) {
           const key = p3.label?.toLowerCase() || p3.entity.split("_").pop() || p3.entity;
-          this.prayerTimes[key] = stateObj.state;
+          this.prayerTimes[key] = parseStateToHHMM(stateObj.state);
         }
       }
     }

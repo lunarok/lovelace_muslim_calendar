@@ -34,9 +34,25 @@ const DEGREES: Record<number, string> = {
 // Helper Functions
 // ============================================================================
 
-function timeToMinutes(timeStr: string): number {
-  if (!timeStr || timeStr === '--:--') return 0;
-  const parts = timeStr.split(':');
+// Accepts "HH:MM", "HH:MM:SS", or ISO timestamp "2024-05-05T05:30:00+02:00"
+function parseStateToHHMM(state: string): string {
+  if (!state || state === 'unavailable' || state === 'unknown') return '--:--';
+  // ISO timestamp
+  if (state.includes('T')) {
+    const d = new Date(state);
+    if (!isNaN(d.getTime())) {
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+  }
+  // Plain "HH:MM" or "HH:MM:SS"
+  const parts = state.split(':');
+  if (parts.length >= 2) return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+  return '--:--';
+}
+
+function timeToMinutes(hhmm: string): number {
+  if (!hhmm || hhmm === '--:--') return 0;
+  const parts = hhmm.split(':');
   return parseInt(parts[0]) * 60 + parseInt(parts[1]);
 }
 
@@ -133,7 +149,7 @@ class PrayerHorizonCard extends LitElement {
         const stateObj = hass.states[p.entity];
         if (stateObj) {
           const key = p.label?.toLowerCase() || p.entity.split('_').pop() || p.entity;
-          this.prayerTimes[key] = stateObj.state;
+          this.prayerTimes[key] = parseStateToHHMM(stateObj.state);
         }
       }
     }
