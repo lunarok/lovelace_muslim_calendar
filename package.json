@@ -1,0 +1,16 @@
+{
+  "name": "lovelace-muslim-calendar",
+  "version": "1.0.0",
+  "description": "Lovelace card for Muslim Calendar — prayer times arc, Hijri date, next events, Qibla compass",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && esbuild src/prayer-card.ts --bundle --outfile=dist/prayer-card.js --format=esm --target=es2020",
+    "dev": "tsc --watch & esbuild src/prayer-card.ts --bundle --outfile=dist/prayer-card.js --format=esm --target=es2020 --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.20.2",
+    "lit": "^3.3.2",
+    "typescript": "^5.9.3"
+  }
+}
