@@ -828,44 +828,21 @@ function cardinalDir(deg) {
   };
   return dirs[Math.round(deg / 22.5) * 22.5 % 360] || "N";
 }
-function findDeviceEntities(hass, deviceId) {
-  const result = {};
+function findPrefix(hass, deviceId) {
+  const allIds = Object.keys(hass.states || {});
+  let candidates = allIds;
   if (hass.entities && typeof hass.entities === "object") {
-    for (const [entityId, entry] of Object.entries(hass.entities)) {
-      if (entry && entry.device_id === deviceId) {
-        result[entityId] = entry.unique_id || "";
-      }
-    }
-    if (Object.keys(result).length > 0)
-      return result;
-  }
-  if (hass.entities && typeof hass.entities === "object") {
-    for (const [entityId, entry] of Object.entries(hass.entities)) {
-      if (entry && (entry.platform === "muslim_calendar" || (entry.unique_id || "").startsWith("muslim_calendar_"))) {
-        result[entityId] = entry.unique_id || "";
-      }
-    }
-    if (Object.keys(result).length > 0)
-      return result;
-  }
-  const PRAYER_IDS = [
-    "fajr",
-    "shuruq",
-    "dhuhr",
-    "asr",
-    "maghrib",
-    "isha",
-    "hijri",
-    "qibla",
-    "events"
-  ];
-  for (const [entityId, stateObj] of Object.entries(hass.states)) {
-    const uid = entityId.replace("sensor.", "").replace("binary_sensor.", "");
-    if (PRAYER_IDS.some((k2) => entityId.includes(k2))) {
-      result[entityId] = uid;
+    const byDevice = Object.entries(hass.entities).filter(([_2, e5]) => e5?.device_id === deviceId).map(([id]) => id);
+    if (byDevice.length > 0) {
+      candidates = byDevice;
+    } else {
+      const byPlatform = Object.entries(hass.entities).filter(([_2, e5]) => e5?.platform === "muslim_calendar").map(([id]) => id);
+      if (byPlatform.length > 0)
+        candidates = byPlatform;
     }
   }
-  return result;
+  const fajr = candidates.find((id) => id.endsWith("_fajr"));
+  return fajr ? fajr.replace(/_fajr$/, "") : null;
 }
 var PrayerHorizonCard = class extends i4 {
   constructor() {
@@ -894,7 +871,7 @@ var PrayerHorizonCard = class extends i4 {
   // Lifecycle
   // --------------------------------------------------------------------------
   updated(changedProps) {
-    if (changedProps.has("hass") && this._config) {
+    if ((changedProps.has("hass") || changedProps.has("_config")) && this.hass && this._config) {
       this._loadFromDevice();
       this._detectTheme();
     }
@@ -919,19 +896,13 @@ var PrayerHorizonCard = class extends i4 {
     const hass = this.hass;
     if (!hass || !this._config.device)
       return;
-    const deviceEntities = findDeviceEntities(hass, this._config.device);
-    const ids = Object.keys(deviceEntities);
-    const find = (...keywords) => ids.find(
-      (id) => keywords.some((k2) => deviceEntities[id].includes(k2) || id.includes(k2))
-    );
-    const findExclude = (include, exclude) => ids.find(
-      (id) => (deviceEntities[id].includes(include) || id.includes(include)) && !deviceEntities[id].includes(exclude) && !id.includes(exclude)
-    );
+    const prefix = findPrefix(hass, this._config.device);
+    if (!prefix)
+      return;
     const nowMins = (/* @__PURE__ */ new Date()).getHours() * 60 + (/* @__PURE__ */ new Date()).getMinutes();
     const times = [];
     for (const key of PRAYER_KEYS) {
-      const entityId = find(`prayer_times_${key}`, `_prayer_${key}`, `_${key}_time`, `_${key}`);
-      const hhmm = entityId ? toHHMM(hass.states[entityId]?.state ?? "") : "--:--";
+      const hhmm = toHHMM(hass.states[`${prefix}_${key}`]?.state ?? "");
       times.push({ key, hhmm });
     }
     let activeIdx = -1;
@@ -946,11 +917,11 @@ var PrayerHorizonCard = class extends i4 {
       time: hhmm,
       active: i5 === activeIdx
     }));
-    const hijriId = findExclude("hijri", "tomorrow");
-    this._hijriDate = hijriId ? hass.states[hijriId]?.state ?? "" : "";
-    const eventsId = find("events");
-    if (eventsId) {
-      const attrs = hass.states[eventsId]?.attributes ?? {};
+    const hijriState = hass.states[`${prefix}_hijri_date`] ?? hass.states[`${prefix}_hijri`];
+    this._hijriDate = hijriState?.state ?? "";
+    const eventsState = hass.states[`${prefix}_events`];
+    if (eventsState) {
+      const attrs = eventsState.attributes ?? {};
       this._nextEvents = [];
       if (attrs.next_event_name) {
         this._nextEvents.push({ name: attrs.next_event_name, date: attrs.next_event_date ?? "" });
@@ -969,8 +940,8 @@ var PrayerHorizonCard = class extends i4 {
         }
       }
     }
-    const qiblaId = find("qibla");
-    this._qibla = qiblaId ? parseFloat(hass.states[qiblaId]?.state) || 0 : 0;
+    const qiblaState = hass.states[`${prefix}_qibla_direction`] ?? hass.states[`${prefix}_qibla`];
+    this._qibla = parseFloat(qiblaState?.state) || 0;
   }
   // --------------------------------------------------------------------------
   // Render
