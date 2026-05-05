@@ -53,14 +53,40 @@ function cardinalDir(deg: number): string {
   return dirs[Math.round(deg / 22.5) * 22.5 % 360] || 'N';
 }
 
-// Find all entities for a device from hass.entities registry
+// Build a map of entity_id → unique_id for a given device.
+// Tries multiple strategies to handle different HA versions.
 function findDeviceEntities(hass: any, deviceId: string): Record<string, string> {
-  // hass.entities: { entity_id → { device_id, unique_id, platform, ... } }
-  if (!hass.entities) return {};
   const result: Record<string, string> = {};
-  for (const [entityId, entry] of Object.entries(hass.entities as Record<string, any>)) {
-    if (entry.device_id === deviceId) {
-      result[entityId] = entry.unique_id || '';
+
+  // Strategy 1: hass.entities (HA 2022.6+)
+  if (hass.entities && typeof hass.entities === 'object') {
+    for (const [entityId, entry] of Object.entries(hass.entities as Record<string, any>)) {
+      if (entry && entry.device_id === deviceId) {
+        result[entityId] = entry.unique_id || '';
+      }
+    }
+    if (Object.keys(result).length > 0) return result;
+  }
+
+  // Strategy 2: scan hass.states attributes for platform hint + match device via unique_id prefix
+  // muslim_calendar unique_ids start with "muslim_calendar_"
+  if (hass.entities && typeof hass.entities === 'object') {
+    for (const [entityId, entry] of Object.entries(hass.entities as Record<string, any>)) {
+      if (entry && (entry.platform === 'muslim_calendar' || (entry.unique_id || '').startsWith('muslim_calendar_'))) {
+        result[entityId] = entry.unique_id || '';
+      }
+    }
+    if (Object.keys(result).length > 0) return result;
+  }
+
+  // Strategy 3: last resort — match entity_ids by state pattern (ISO timestamp) combined with
+  // known prayer keyword in entity_id, for single-instance setups
+  const PRAYER_IDS = ['fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha',
+                      'hijri', 'qibla', 'events'];
+  for (const [entityId, stateObj] of Object.entries(hass.states as Record<string, any>)) {
+    const uid = entityId.replace('sensor.', '').replace('binary_sensor.', '');
+    if (PRAYER_IDS.some(k => entityId.includes(k))) {
+      result[entityId] = uid;
     }
   }
   return result;
@@ -133,22 +159,28 @@ class PrayerHorizonCard extends LitElement {
     const hass = this.hass;
     if (!hass || !this._config.device) return;
 
-    // Map entity_id → unique_id for the device
     const deviceEntities = findDeviceEntities(hass, this._config.device);
+    const ids = Object.keys(deviceEntities);
+
+    // Helper: find entity_id whose unique_id OR entity_id includes any of the given keywords
+    const find = (...keywords: string[]) => ids.find(id =>
+      keywords.some(k => deviceEntities[id].includes(k) || id.includes(k))
+    );
+    const findExclude = (include: string, exclude: string) => ids.find(id =>
+      (deviceEntities[id].includes(include) || id.includes(include)) &&
+      !deviceEntities[id].includes(exclude) && !id.includes(exclude)
+    );
 
     // ----- Prayer times -----
     const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
     const times: Array<{ key: string; hhmm: string }> = [];
 
     for (const key of PRAYER_KEYS) {
-      const entityId = Object.keys(deviceEntities).find(id =>
-        deviceEntities[id].includes(`prayer_times_${key}`)
-      );
+      const entityId = find(`prayer_times_${key}`, `_prayer_${key}`, `_${key}_time`, `_${key}`);
       const hhmm = entityId ? toHHMM(hass.states[entityId]?.state ?? '') : '--:--';
       times.push({ key, hhmm });
     }
 
-    // Active = last prayer whose time has passed
     let activeIdx = -1;
     times.forEach(({ hhmm }, i) => {
       const m = toMinutes(hhmm);
@@ -163,15 +195,11 @@ class PrayerHorizonCard extends LitElement {
     }));
 
     // ----- Hijri date -----
-    const hijriId = Object.keys(deviceEntities).find(id =>
-      deviceEntities[id].includes('hijri_date') && !deviceEntities[id].includes('tomorrow')
-    );
+    const hijriId = findExclude('hijri', 'tomorrow');
     this._hijriDate = hijriId ? (hass.states[hijriId]?.state ?? '') : '';
 
     // ----- Events -----
-    const eventsId = Object.keys(deviceEntities).find(id =>
-      deviceEntities[id].includes('_events')
-    );
+    const eventsId = find('events');
     if (eventsId) {
       const attrs = hass.states[eventsId]?.attributes ?? {};
       this._nextEvents = [];
@@ -188,9 +216,7 @@ class PrayerHorizonCard extends LitElement {
     }
 
     // ----- Qibla -----
-    const qiblaId = Object.keys(deviceEntities).find(id =>
-      deviceEntities[id].includes('qibla')
-    );
+    const qiblaId = find('qibla');
     this._qibla = qiblaId ? (parseFloat(hass.states[qiblaId]?.state) || 0) : 0;
   }
 
