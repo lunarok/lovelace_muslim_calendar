@@ -1,33 +1,14 @@
 {
   "name": "Prayer Horizon Card",
+  "description": "Lovelace card showing prayer times on a horizon arc with Hijri date, next events, and Qibla compass. Works with Muslim Calendar plugin.",
   "filename": "dist/prayer-card.js",
-  "render_config": {
-    "schema": {
-      "type": "object",
-      "properties": {
-        "type": { "type": "string", "default": "custom:prayer-horizon-card" },
-        "prayer_entities": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "entity": { "type": "string" },
-              "label": { "type": "string" }
-            }
-          },
-          "default": [
-            { "entity": "sensor.muslim_calendar_prayer_fajr", "label": "Fajr" },
-            { "entity": "sensor.muslim_calendar_prayer_shuruq", "label": "Sunrise" },
-            { "entity": "sensor.muslim_calendar_prayer_dhuhr", "label": "Dhuhr" },
-            { "entity": "sensor.muslim_calendar_prayer_asr", "label": "Asr" },
-            { "entity": "sensor.muslim_calendar_prayer_maghrib", "label": "Maghrib" },
-            { "entity": "sensor.muslim_calendar_prayer_isha", "label": "Isha" }
-          ]
-        },
-        "qibla_entity": { "type": "string", "default": "sensor.muslim_calendar_qibla_direction" },
-        "hijri_entity": { "type": "string", "default": "sensor.muslim_calendar_hijri_date" },
-        "events_entity": { "type": "string", "default": "sensor.muslim_calendar_events" }
-      }
+  "integration_type": "lovelace",
+  "authors": [
+    {
+      "name": "Cedric (Lunarok)",
+      "url": "https://github.com/lunarok"
     }
-  }
+  ],
+  "codeowners": ["@lunarok"],
+  "homeassistant": "2024.0.0"
 }
