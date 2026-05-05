@@ -151,12 +151,20 @@ class PrayerHorizonCard extends LitElement {
     const prefix = findPrefix(hass, this._config.device);
     if (!prefix) return;
 
+    // All entities whose id starts with the prefix — scoped keyword search
+    const scoped = Object.keys(hass.states).filter(id => id.startsWith(prefix + '_'));
+    const scopedFind = (...kws: string[]) =>
+      scoped.find(id => kws.some(k => id.includes(k)));
+
     // ----- Prayer times -----
     const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
     const times: Array<{ key: string; hhmm: string }> = [];
 
     for (const key of PRAYER_KEYS) {
-      const hhmm = toHHMM(hass.states[`${prefix}_${key}`]?.state ?? '');
+      // Try direct name first, fall back to keyword search within prefix scope
+      const directId = `${prefix}_${key}`;
+      const entityId = hass.states[directId] !== undefined ? directId : scopedFind(`_${key}`);
+      const hhmm = entityId ? toHHMM(hass.states[entityId]?.state ?? '') : '--:--';
       times.push({ key, hhmm });
     }
 
@@ -174,13 +182,13 @@ class PrayerHorizonCard extends LitElement {
     }));
 
     // ----- Hijri date -----
-    const hijriState = hass.states[`${prefix}_hijri_date`] ?? hass.states[`${prefix}_hijri`];
-    this._hijriDate = hijriState?.state ?? '';
+    const hijriId = scoped.find(id => id.includes('hijri') && !id.includes('tomorrow'));
+    this._hijriDate = hijriId ? (hass.states[hijriId]?.state ?? '') : '';
 
     // ----- Events -----
-    const eventsState = hass.states[`${prefix}_events`];
-    if (eventsState) {
-      const attrs = eventsState.attributes ?? {};
+    const eventsId = scopedFind('events');
+    if (eventsId) {
+      const attrs = hass.states[eventsId]?.attributes ?? {};
       this._nextEvents = [];
       if (attrs.next_event_name) {
         this._nextEvents.push({ name: attrs.next_event_name, date: attrs.next_event_date ?? '' });
@@ -195,8 +203,8 @@ class PrayerHorizonCard extends LitElement {
     }
 
     // ----- Qibla -----
-    const qiblaState = hass.states[`${prefix}_qibla_direction`] ?? hass.states[`${prefix}_qibla`];
-    this._qibla = parseFloat(qiblaState?.state) || 0;
+    const qiblaId = scopedFind('qibla');
+    this._qibla = qiblaId ? (parseFloat(hass.states[qiblaId]?.state) || 0) : 0;
   }
 
   // --------------------------------------------------------------------------

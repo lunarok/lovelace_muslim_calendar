@@ -914,10 +914,14 @@ var PrayerHorizonCard = class extends i4 {
     const prefix = findPrefix(hass, this._config.device);
     if (!prefix)
       return;
+    const scoped = Object.keys(hass.states).filter((id) => id.startsWith(prefix + "_"));
+    const scopedFind = (...kws) => scoped.find((id) => kws.some((k2) => id.includes(k2)));
     const nowMins = (/* @__PURE__ */ new Date()).getHours() * 60 + (/* @__PURE__ */ new Date()).getMinutes();
     const times = [];
     for (const key of PRAYER_KEYS) {
-      const hhmm = toHHMM(hass.states[`${prefix}_${key}`]?.state ?? "");
+      const directId = `${prefix}_${key}`;
+      const entityId = hass.states[directId] !== void 0 ? directId : scopedFind(`_${key}`);
+      const hhmm = entityId ? toHHMM(hass.states[entityId]?.state ?? "") : "--:--";
       times.push({ key, hhmm });
     }
     let activeIdx = -1;
@@ -932,11 +936,11 @@ var PrayerHorizonCard = class extends i4 {
       time: hhmm,
       active: i5 === activeIdx
     }));
-    const hijriState = hass.states[`${prefix}_hijri_date`] ?? hass.states[`${prefix}_hijri`];
-    this._hijriDate = hijriState?.state ?? "";
-    const eventsState = hass.states[`${prefix}_events`];
-    if (eventsState) {
-      const attrs = eventsState.attributes ?? {};
+    const hijriId = scoped.find((id) => id.includes("hijri") && !id.includes("tomorrow"));
+    this._hijriDate = hijriId ? hass.states[hijriId]?.state ?? "" : "";
+    const eventsId = scopedFind("events");
+    if (eventsId) {
+      const attrs = hass.states[eventsId]?.attributes ?? {};
       this._nextEvents = [];
       if (attrs.next_event_name) {
         this._nextEvents.push({ name: attrs.next_event_name, date: attrs.next_event_date ?? "" });
@@ -955,8 +959,8 @@ var PrayerHorizonCard = class extends i4 {
         }
       }
     }
-    const qiblaState = hass.states[`${prefix}_qibla_direction`] ?? hass.states[`${prefix}_qibla`];
-    this._qibla = parseFloat(qiblaState?.state) || 0;
+    const qiblaId = scopedFind("qibla");
+    this._qibla = qiblaId ? parseFloat(hass.states[qiblaId]?.state) || 0 : 0;
   }
   // --------------------------------------------------------------------------
   // Render
