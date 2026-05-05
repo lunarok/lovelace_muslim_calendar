@@ -830,7 +830,7 @@ function cardinallyDegrees(deg) {
 var PrayerHorizonCard = class extends i4 {
   constructor() {
     super(...arguments);
-    this.prayerTimes = {};
+    this.prayerTimes = [];
     this.qiblaDirection = 0;
     this.hijriDate = "";
     this.nextEvents = [];
@@ -892,14 +892,10 @@ var PrayerHorizonCard = class extends i4 {
     if (!hass)
       return;
     if (this._config.prayer_entities) {
-      this.prayerTimes = {};
-      for (const p3 of this._config.prayer_entities) {
+      this.prayerTimes = this._config.prayer_entities.map((p3) => {
         const stateObj = hass.states[p3.entity];
-        if (stateObj) {
-          const key = p3.label?.toLowerCase() || p3.entity.split("_").pop() || p3.entity;
-          this.prayerTimes[key] = parseStateToHHMM(stateObj.state);
-        }
-      }
+        return stateObj ? parseStateToHHMM(stateObj.state) : "--:--";
+      });
     }
     if (this._config.qibla_entity) {
       const stateObj = hass.states[this._config.qibla_entity];
@@ -958,10 +954,11 @@ var PrayerHorizonCard = class extends i4 {
     `;
   }
   _renderHorizonArc() {
-    const prayers = (this._config.prayer_entities || []).map((p3, i5) => {
-      const key = p3.label?.toLowerCase() || p3.entity.split("_").pop() || p3.entity;
-      return { key, label: p3.label || key, time: this.prayerTimes[key] || "--:--", index: i5 };
-    });
+    const prayers = (this._config.prayer_entities || []).map((p3, i5) => ({
+      label: p3.label || p3.entity,
+      time: this.prayerTimes[i5] || "--:--",
+      index: i5
+    }));
     const prayerMinutes = prayers.map((p3) => ({
       ...p3,
       minutes: timeToMinutes(p3.time)

@@ -70,7 +70,7 @@ class PrayerHorizonCard extends LitElement {
   @property({ attribute: false }) public hass: any;
 
   @state() private _config!: CardConfig;
-  @state() private prayerTimes: Record<string, string> = {};
+  @state() private prayerTimes: string[] = [];  // indexed by prayer_entities order
   @state() private qiblaDirection: number = 0;
   @state() private hijriDate: string = '';
   @state() private nextEvents: Array<{name: string; date: string}> = [];
@@ -142,16 +142,12 @@ class PrayerHorizonCard extends LitElement {
   private _loadStates(hass: any) {
     if (!hass) return;
 
-    // Load prayer times
+    // Load prayer times — stored as array in config order, no key derivation
     if (this._config.prayer_entities) {
-      this.prayerTimes = {};
-      for (const p of this._config.prayer_entities) {
+      this.prayerTimes = this._config.prayer_entities.map(p => {
         const stateObj = hass.states[p.entity];
-        if (stateObj) {
-          const key = p.label?.toLowerCase() || p.entity.split('_').pop() || p.entity;
-          this.prayerTimes[key] = parseStateToHHMM(stateObj.state);
-        }
-      }
+        return stateObj ? parseStateToHHMM(stateObj.state) : '--:--';
+      });
     }
 
     // Load Qibla
@@ -211,10 +207,11 @@ class PrayerHorizonCard extends LitElement {
   }
 
   private _renderHorizonArc() {
-    const prayers = (this._config.prayer_entities || []).map((p, i) => {
-      const key = p.label?.toLowerCase() || p.entity.split('_').pop() || p.entity;
-      return { key, label: p.label || key, time: this.prayerTimes[key] || '--:--', index: i };
-    });
+    const prayers = (this._config.prayer_entities || []).map((p, i) => ({
+      label: p.label || p.entity,
+      time: this.prayerTimes[i] || '--:--',
+      index: i,
+    }));
 
     const prayerMinutes = prayers.map(p => ({
       ...p,
