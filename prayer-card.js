@@ -786,25 +786,8 @@ var TRANSLATIONS = {
 };
 
 // src/prayer-card.ts
-var DEGREES = {
-  0: "N",
-  22.5: "NNE",
-  45: "NE",
-  67.5: "ENE",
-  90: "E",
-  112.5: "ESE",
-  135: "SE",
-  157.5: "SSE",
-  180: "S",
-  202.5: "SSW",
-  225: "SW",
-  247.5: "WSW",
-  270: "W",
-  292.5: "WNW",
-  315: "NW",
-  337.5: "NNW"
-};
-function parseStateToHHMM(state) {
+var PRAYER_KEYS = ["fajr", "shuruq", "dhuhr", "asr", "maghrib", "isha"];
+function toHHMM(state) {
   if (!state || state === "unavailable" || state === "unknown")
     return "--:--";
   if (state.includes("T")) {
@@ -818,61 +801,79 @@ function parseStateToHHMM(state) {
     return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
   return "--:--";
 }
-function timeToMinutes(hhmm) {
+function toMinutes(hhmm) {
   if (!hhmm || hhmm === "--:--")
-    return 0;
-  const parts = hhmm.split(":");
-  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    return -1;
+  const [h3, m2] = hhmm.split(":").map(Number);
+  return h3 * 60 + m2;
 }
-function cardinallyDegrees(deg) {
-  return DEGREES[Math.round(deg / 22.5) * 22.5 % 360] || "N";
+function cardinalDir(deg) {
+  const dirs = {
+    0: "N",
+    22.5: "NNE",
+    45: "NE",
+    67.5: "ENE",
+    90: "E",
+    112.5: "ESE",
+    135: "SE",
+    157.5: "SSE",
+    180: "S",
+    202.5: "SSW",
+    225: "SW",
+    247.5: "WSW",
+    270: "W",
+    292.5: "WNW",
+    315: "NW",
+    337.5: "NNW"
+  };
+  return dirs[Math.round(deg / 22.5) * 22.5 % 360] || "N";
+}
+function findDeviceEntities(hass, deviceId) {
+  if (!hass.entities)
+    return {};
+  const result = {};
+  for (const [entityId, entry] of Object.entries(hass.entities)) {
+    if (entry.device_id === deviceId) {
+      result[entityId] = entry.unique_id || "";
+    }
+  }
+  return result;
 }
 var PrayerHorizonCard = class extends i4 {
   constructor() {
     super(...arguments);
-    this.prayerTimes = [];
-    this.qiblaDirection = 0;
-    this.hijriDate = "";
-    this.nextEvents = [];
-    this.currentTime = 0;
-    this.theme = "light";
+    this._prayers = [];
+    this._hijriDate = "";
+    this._nextEvents = [];
+    this._qibla = 0;
+    this._theme = "light";
   }
   // --------------------------------------------------------------------------
-  // HA Required API
+  // HA API
   // --------------------------------------------------------------------------
   setConfig(config) {
-    if (!config.prayer_entities || !Array.isArray(config.prayer_entities)) {
-      throw new Error("prayer_entities is required and must be an array");
-    }
+    if (!config.device)
+      throw new Error("device is required");
     this._config = config;
   }
   getCardSize() {
-    return 4;
+    return 3;
   }
   static getStubConfig() {
-    return {
-      prayer_entities: [
-        { entity: "sensor.fajr_time", label: "Fajr" },
-        { entity: "sensor.shuruq_time", label: "Sunrise" },
-        { entity: "sensor.dhuhr_time", label: "Dhuhr" },
-        { entity: "sensor.asr_time", label: "Asr" },
-        { entity: "sensor.maghrib_time", label: "Maghrib" },
-        { entity: "sensor.isha_time", label: "Isha" }
-      ]
-    };
+    return { device: "" };
   }
   // --------------------------------------------------------------------------
   // Lifecycle
   // --------------------------------------------------------------------------
   updated(changedProps) {
     if (changedProps.has("hass") && this._config) {
-      this._loadStates(this.hass);
+      this._loadFromDevice();
+      this._detectTheme();
     }
   }
   connectedCallback() {
     super.connectedCallback();
-    this._interval = window.setInterval(() => this._updateCurrentTime(), 6e4);
-    this._updateCurrentTime();
+    this._interval = window.setInterval(() => this.requestUpdate(), 6e4);
   }
   disconnectedCallback() {
     super.disconnectedCallback();
@@ -880,61 +881,69 @@ var PrayerHorizonCard = class extends i4 {
       clearInterval(this._interval);
   }
   // --------------------------------------------------------------------------
-  // State Loading
+  // Data loading
   // --------------------------------------------------------------------------
-  _updateCurrentTime() {
-    const now = /* @__PURE__ */ new Date();
-    this.currentTime = now.getHours() * 60 + now.getMinutes();
+  _detectTheme() {
     const haEl = document.querySelector("home-assistant");
-    this.theme = haEl?.attributes.getNamedItem("theme")?.value === "dark" ? "dark" : "light";
+    this._theme = haEl?.attributes?.getNamedItem?.("theme")?.value === "dark" ? "dark" : "light";
   }
-  _loadStates(hass) {
-    if (!hass)
+  _loadFromDevice() {
+    const hass = this.hass;
+    if (!hass || !this._config.device)
       return;
-    if (this._config.prayer_entities) {
-      this.prayerTimes = this._config.prayer_entities.map((p3) => {
-        const stateObj = hass.states[p3.entity];
-        return stateObj ? parseStateToHHMM(stateObj.state) : "--:--";
-      });
+    const deviceEntities = findDeviceEntities(hass, this._config.device);
+    const nowMins = (/* @__PURE__ */ new Date()).getHours() * 60 + (/* @__PURE__ */ new Date()).getMinutes();
+    const times = [];
+    for (const key of PRAYER_KEYS) {
+      const entityId = Object.keys(deviceEntities).find(
+        (id) => deviceEntities[id].includes(`prayer_times_${key}`)
+      );
+      const hhmm = entityId ? toHHMM(hass.states[entityId]?.state ?? "") : "--:--";
+      times.push({ key, hhmm });
     }
-    if (this._config.qibla_entity) {
-      const stateObj = hass.states[this._config.qibla_entity];
-      if (stateObj)
-        this.qiblaDirection = parseFloat(stateObj.state) || 0;
-    }
-    if (this._config.hijri_entity) {
-      const stateObj = hass.states[this._config.hijri_entity];
-      if (stateObj)
-        this.hijriDate = stateObj.state;
-    }
-    if (this._config.events_entity) {
-      const stateObj = hass.states[this._config.events_entity];
-      if (stateObj) {
-        try {
-          const attrs = stateObj.attributes || {};
-          this.nextEvents = [];
-          if (attrs.next_event_name) {
-            this.nextEvents.push({ name: attrs.next_event_name, date: attrs.next_event_date || "" });
-          }
-          const eventKeys = [
-            "event_islamic_new_year",
-            "event_ashura",
-            "event_first_day_of_ramadan",
-            "event_eid_al_fitr",
-            "event_day_of_arafat",
-            "event_eid_al_adha"
-          ];
-          for (const key of eventKeys) {
-            if (attrs[key] && this.nextEvents.length < 2) {
-              const evName = key.replace("event_", "").replace(/_/g, " ").replace(/\b\w/g, (c4) => c4.toUpperCase());
-              this.nextEvents.push({ name: evName, date: attrs[key] || "" });
-            }
-          }
-        } catch (e5) {
-          console.error("Prayer card: error parsing events", e5);
+    let activeIdx = -1;
+    times.forEach(({ hhmm }, i5) => {
+      const m2 = toMinutes(hhmm);
+      if (m2 !== -1 && m2 <= nowMins)
+        activeIdx = i5;
+    });
+    this._prayers = times.map(({ key, hhmm }, i5) => ({
+      key,
+      label: this._(key.charAt(0).toUpperCase() + key.slice(1)),
+      time: hhmm,
+      active: i5 === activeIdx
+    }));
+    const hijriId = Object.keys(deviceEntities).find(
+      (id) => deviceEntities[id].includes("hijri_date") && !deviceEntities[id].includes("tomorrow")
+    );
+    this._hijriDate = hijriId ? hass.states[hijriId]?.state ?? "" : "";
+    const eventsId = Object.keys(deviceEntities).find(
+      (id) => deviceEntities[id].includes("_events")
+    );
+    if (eventsId) {
+      const attrs = hass.states[eventsId]?.attributes ?? {};
+      this._nextEvents = [];
+      if (attrs.next_event_name) {
+        this._nextEvents.push({ name: attrs.next_event_name, date: attrs.next_event_date ?? "" });
+      }
+      for (const k2 of [
+        "event_islamic_new_year",
+        "event_ashura",
+        "event_first_day_of_ramadan",
+        "event_eid_al_fitr",
+        "event_day_of_arafat",
+        "event_eid_al_adha"
+      ]) {
+        if (attrs[k2] && this._nextEvents.length < 2) {
+          const name = k2.replace("event_", "").replace(/_/g, " ").replace(/\b\w/g, (c4) => c4.toUpperCase());
+          this._nextEvents.push({ name, date: attrs[k2] });
         }
       }
     }
+    const qiblaId = Object.keys(deviceEntities).find(
+      (id) => deviceEntities[id].includes("qibla")
+    );
+    this._qibla = qiblaId ? parseFloat(hass.states[qiblaId]?.state) || 0 : 0;
   }
   // --------------------------------------------------------------------------
   // Render
@@ -944,113 +953,51 @@ var PrayerHorizonCard = class extends i4 {
       return b2``;
     return b2`
       <ha-card>
-        <div class="card-container ${this.theme}">
-          ${this._renderHorizonArc()}
+        <div class="card ${this._theme}">
+          ${this._renderPrayers()}
           ${this._renderInfoBar()}
-          ${this._renderEventsBar()}
-          ${this._renderQiblaCompass()}
+          ${this._renderEvents()}
+          ${this._renderQibla()}
         </div>
       </ha-card>
     `;
   }
-  _renderHorizonArc() {
-    const prayers = (this._config.prayer_entities || []).map((p3, i5) => ({
-      label: p3.label || p3.entity,
-      time: this.prayerTimes[i5] || "--:--",
-      index: i5
-    }));
-    const prayerMinutes = prayers.map((p3) => ({
-      ...p3,
-      minutes: timeToMinutes(p3.time)
-    }));
-    const validMinutes = prayerMinutes.map((p3) => p3.minutes).filter((m2) => m2 > 0);
-    const spanStart = validMinutes.length ? Math.min(...validMinutes) - 20 : 240;
-    const spanEnd = validMinutes.length ? Math.max(...validMinutes) + 20 : 1380;
-    const toX = (mins) => (mins - spanStart) / (spanEnd - spanStart) * 320 + 20;
-    const toY = (mins) => {
-      const t4 = (mins - spanStart) / (spanEnd - spanStart);
-      return 95 - 65 * Math.sin(t4 * Math.PI);
-    };
-    const now = this.currentTime;
-    const nowX = toX(now);
-    const nowVisible = nowX >= 10 && nowX <= 350;
-    const activePrayer = prayerMinutes.reduce((acc, p3, i5) => p3.minutes > 0 && p3.minutes <= now ? i5 : acc, -1);
+  _renderPrayers() {
+    const row1 = this._prayers.slice(0, 3);
+    const row2 = this._prayers.slice(3, 6);
+    const renderCell = (p3) => b2`
+      <div class="prayer-cell ${p3.active ? "active" : ""}">
+        <span class="prayer-label">${p3.label}</span>
+        <span class="prayer-time">${p3.time}</span>
+      </div>
+    `;
     return b2`
-      <div class="horizon-section">
-        <svg viewBox="0 0 360 110" class="horizon-svg">
-          <!-- Horizon arc path through all prayer positions -->
-          <path
-            d="M ${toX(spanStart)},95 ${prayerMinutes.filter((p3) => p3.minutes > 0).map((p3) => `L ${toX(p3.minutes)},${toY(p3.minutes)}`).join(" ")} L ${toX(spanEnd)},95"
-            fill="none"
-            stroke="var(--card-arc-color, #90caf9)"
-            stroke-width="2"
-            stroke-dasharray="4,2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-
-          <!-- Prayer time markers -->
-          ${prayerMinutes.map((p3, i5) => {
-      if (p3.minutes === 0)
-        return b2``;
-      const x2 = toX(p3.minutes);
-      const y3 = toY(p3.minutes);
-      const isActive = i5 === activePrayer;
-      const color = i5 === 0 ? "#7B1FA2" : i5 === prayerMinutes.length - 1 ? "#1a237e" : "#1565C0";
-      return b2`
-              <g class="prayer-marker">
-                <circle cx="${x2}" cy="${y3}" r="${isActive ? 7 : 5}"
-                  fill="${isActive ? "#e65100" : color}"
-                  stroke="white" stroke-width="1.5"/>
-                <line x1="${x2}" y1="${y3 + (isActive ? 8 : 6)}"
-                  x2="${x2}" y2="100"
-                  stroke="var(--card-line-color, #90caf9)"
-                  stroke-width="1" stroke-dasharray="2,2"/>
-                <text x="${x2}" y="108" text-anchor="middle" font-size="7.5"
-                  fill="${isActive ? "#e65100" : "var(--card-text-color, #37474f)"}"
-                  font-weight="${isActive ? "bold" : "normal"}"
-                >${p3.label}</text>
-                <text x="${x2}" y="${y3 - 8}" text-anchor="middle" font-size="7"
-                  fill="${isActive ? "#e65100" : "var(--card-time-color, #1565C0)"}"
-                  font-weight="bold"
-                >${p3.time}</text>
-              </g>
-            `;
-    })}
-
-          <!-- Now indicator -->
-          ${nowVisible ? b2`
-            <line x1="${nowX}" y1="5" x2="${nowX}" y2="100"
-              stroke="var(--card-now-color, #f44336)" stroke-width="1.5" stroke-dasharray="3,2"/>
-            <circle cx="${nowX}" cy="5" r="3" fill="var(--card-now-color, #f44336)"/>
-          ` : ""}
-        </svg>
+      <div class="prayers-grid">
+        <div class="prayers-row">${row1.map(renderCell)}</div>
+        <div class="prayers-row">${row2.map(renderCell)}</div>
       </div>
     `;
   }
   _renderInfoBar() {
+    const now = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     return b2`
       <div class="info-bar">
-        <div class="hijri-date">
-          <span class="label">${this._("Hijri Date")}</span>
-          <span class="value">${this.hijriDate || "\u2014"}</span>
+        <div class="hijri">
+          <span class="section-label">${this._("Hijri Date")}</span>
+          <span class="hijri-value">${this._hijriDate || "\u2014"}</span>
         </div>
-        <div class="time-display">
-          <span class="current-time">${(/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-        </div>
+        <span class="clock">${now}</span>
       </div>
     `;
   }
-  _renderEventsBar() {
-    if (this.nextEvents.length === 0)
+  _renderEvents() {
+    if (!this._nextEvents.length)
       return b2``;
     return b2`
-      <div class="events-bar">
-        <div class="events-header">
-          <span class="events-title">${this._("Next Events")}</span>
-        </div>
+      <div class="events-section">
+        <span class="section-label">${this._("Next Events")}</span>
         <div class="events-list">
-          ${this.nextEvents.map((ev) => b2`
+          ${this._nextEvents.map((ev) => b2`
             <div class="event-item">
               <span class="event-name">${ev.name}</span>
               ${ev.date ? b2`<span class="event-date">${ev.date}</span>` : ""}
@@ -1060,33 +1007,33 @@ var PrayerHorizonCard = class extends i4 {
       </div>
     `;
   }
-  _renderQiblaCompass() {
-    const deg = this.qiblaDirection;
-    const cardinal = cardinallyDegrees(deg);
-    const rad = (deg - 90) * Math.PI / 180;
-    const needleX = Math.cos(rad) * 28;
-    const needleY = Math.sin(rad) * 28;
+  _renderQibla() {
+    if (!this._qibla)
+      return b2``;
+    const rad = (this._qibla - 90) * Math.PI / 180;
+    const nx = Math.cos(rad) * 28;
+    const ny = Math.sin(rad) * 28;
     return b2`
-      <div class="compass-section">
+      <div class="qibla-section">
         <svg viewBox="-35 -35 70 70" class="compass-svg">
-          <circle cx="0" cy="0" r="33" fill="none" stroke="var(--card-compass-ring, #90a4ae)" stroke-width="1.5"/>
-          ${[["N", 0, -28], ["E", 28, 5], ["S", 0, 28], ["W", -28, 5]].map(([l3, x2, y3]) => b2`
-            <text x="${x2}" y="${y3}" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="bold" fill="var(--card-cardinal-color, #37474f)">${l3}</text>
+          <circle cx="0" cy="0" r="33" fill="none" stroke="var(--divider-color, #e0e0e0)" stroke-width="1.5"/>
+          ${[["N", 0, -26], ["E", 26, 4], ["S", 0, 26], ["W", -26, 4]].map(([l3, x2, y3]) => b2`
+            <text x="${x2}" y="${y3}" text-anchor="middle" dominant-baseline="middle"
+              font-size="8" font-weight="bold" fill="var(--secondary-text-color, #757575)">${l3}</text>
           `)}
-          <line x1="0" y1="0" x2="${needleX}" y2="${needleY}" stroke="#c62828" stroke-width="3" stroke-linecap="round"/>
-          <circle cx="${needleX}" cy="${needleY}" r="4" fill="#c62828"/>
-          <circle cx="0" cy="0" r="4" fill="#ef5350"/>
-          <circle cx="0" cy="0" r="2" fill="var(--card-compass-ring, #90a4ae)"/>
+          <line x1="0" y1="0" x2="${nx}" y2="${ny}" stroke="#c62828" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="${nx}" cy="${ny}" r="4" fill="#c62828"/>
+          <circle cx="0" cy="0" r="3" fill="#ef5350"/>
         </svg>
-        <div class="compass-info">
-          <span class="qibla-degrees">${deg.toFixed(1)}°</span>
-          <span class="qibla-direction">${cardinal}</span>
+        <div class="qibla-info">
+          <span class="qibla-deg">${this._qibla.toFixed(1)}°</span>
+          <span class="qibla-dir">${cardinalDir(this._qibla)}</span>
         </div>
       </div>
     `;
   }
   // --------------------------------------------------------------------------
-  // Helpers
+  // i18n
   // --------------------------------------------------------------------------
   _(key) {
     const lang = document.querySelector("html")?.getAttribute("lang") || "en";
@@ -1097,85 +1044,132 @@ var PrayerHorizonCard = class extends i4 {
 // Styles
 // --------------------------------------------------------------------------
 PrayerHorizonCard.styles = i`
-    :host {
-      display: block;
-    }
-    ha-card {
-      padding: 0;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .card-container {
+    :host { display: block; }
+    ha-card { overflow: hidden; }
+
+    .card {
       padding: 12px;
-      font-family: var(--font-family, 'Roboto', sans-serif);
-    }
-    .card-container.dark {
-      --card-text-color: #e0e0e0;
-      --card-arc-color: #64b5f6;
-      --card-line-color: #546e7a;
-      --card-time-color: #90caf9;
-      --card-bg-day: #1a237e;
-      --card-bg-horizon: #ff8a65;
-      --card-cardinal-color: #b0bec5;
-      --card-compass-ring: #78909c;
-      --card-now-color: #ef5350;
-    }
-    .card-container.light {
-      --card-text-color: #37474f;
-      --card-arc-color: #42a5f5;
-      --card-line-color: #bbdefb;
-      --card-time-color: #1565c0;
-      --card-bg-day: #e3f2fd;
-      --card-bg-horizon: #fff3e0;
-      --card-cardinal-color: #37474f;
-      --card-compass-ring: #90a4ae;
-      --card-now-color: #e53935;
+      font-family: var(--paper-font-body1_-_font-family, Roboto, sans-serif);
     }
 
-    .horizon-section { width: 100%; }
-    .horizon-svg { width: 100%; height: 120px; }
+    /* Prayer grid */
+    .prayers-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .prayers-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+    }
+    .prayer-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 4px;
+      border-radius: 8px;
+      background: var(--secondary-background-color, #f5f5f5);
+      transition: background 0.2s;
+    }
+    .prayer-cell.active {
+      background: var(--primary-color, #03a9f4);
+    }
+    .prayer-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--secondary-text-color, #757575);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .prayer-cell.active .prayer-label {
+      color: var(--text-primary-color, #fff);
+      opacity: 0.85;
+    }
+    .prayer-time {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--primary-text-color, #212121);
+      margin-top: 2px;
+    }
+    .prayer-cell.active .prayer-time {
+      color: var(--text-primary-color, #fff);
+    }
 
+    /* Info bar */
     .info-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 4px;
-      border-top: 1px solid rgba(0,0,0,0.06);
+      padding: 8px 4px 4px;
+      border-top: 1px solid var(--divider-color, rgba(0,0,0,0.06));
+      margin-top: 8px;
+    }
+    .section-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--secondary-text-color, #757575);
+      margin-bottom: 2px;
+    }
+    .hijri-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary-text-color, #212121);
+    }
+    .clock {
+      font-size: 22px;
+      font-weight: 300;
+      color: var(--primary-text-color, #212121);
+    }
+
+    /* Events */
+    .events-section {
+      padding: 8px 4px 4px;
+      border-top: 1px solid var(--divider-color, rgba(0,0,0,0.06));
+    }
+    .events-list {
+      display: flex;
+      gap: 12px;
       margin-top: 4px;
     }
-    .hijri-date { display: flex; flex-direction: column; }
-    .hijri-date .label { font-size: 10px; color: var(--card-text-color); opacity: 0.7; text-transform: uppercase; }
-    .hijri-date .value { font-size: 14px; font-weight: 600; color: var(--card-text-color); }
-    .time-display { font-size: 20px; font-weight: 300; color: var(--card-text-color); }
-
-    .events-bar {
+    .event-item {
       display: flex;
       flex-direction: column;
-      padding: 8px 4px;
-      border-top: 1px solid rgba(0,0,0,0.06);
-      gap: 6px;
+      flex: 1;
     }
-    .events-header { display: flex; align-items: center; }
-    .events-title { font-size: 10px; color: var(--card-text-color); opacity: 0.7; text-transform: uppercase; font-weight: 500; }
-    .events-list { display: flex; gap: 12px; }
-    .event-item { display: flex; flex-direction: column; flex: 1; }
-    .event-name { font-size: 11px; font-weight: 600; color: var(--card-text-color); }
-    .event-date { font-size: 9px; color: var(--card-text-color); opacity: 0.7; }
+    .event-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary-text-color, #212121);
+    }
+    .event-date {
+      font-size: 10px;
+      color: var(--secondary-text-color, #757575);
+    }
 
-    .compass-section {
+    /* Qibla */
+    .qibla-section {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      padding-top: 8px;
-      border-top: 1px solid rgba(0,0,0,0.06);
+      gap: 12px;
+      padding: 8px 4px 0;
+      border-top: 1px solid var(--divider-color, rgba(0,0,0,0.06));
     }
-    .compass-svg { width: 100px; height: 100px; }
-    .compass-info { display: flex; gap: 8px; align-items: baseline; }
-    .qibla-degrees { font-size: 16px; font-weight: 700; color: var(--card-text-color); }
-    .qibla-direction { font-size: 12px; color: var(--card-text-color); opacity: 0.8; }
-
-    .prayer-marker { cursor: pointer; }
-    .prayer-marker:hover circle { r: 8; }
+    .compass-svg { width: 70px; height: 70px; flex-shrink: 0; }
+    .qibla-info { display: flex; flex-direction: column; }
+    .qibla-deg {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary-text-color, #212121);
+    }
+    .qibla-dir {
+      font-size: 13px;
+      color: var(--secondary-text-color, #757575);
+    }
   `;
 __decorateClass([
   n4({ attribute: false })
@@ -1185,22 +1179,19 @@ __decorateClass([
 ], PrayerHorizonCard.prototype, "_config", 2);
 __decorateClass([
   r5()
-], PrayerHorizonCard.prototype, "prayerTimes", 2);
+], PrayerHorizonCard.prototype, "_prayers", 2);
 __decorateClass([
   r5()
-], PrayerHorizonCard.prototype, "qiblaDirection", 2);
+], PrayerHorizonCard.prototype, "_hijriDate", 2);
 __decorateClass([
   r5()
-], PrayerHorizonCard.prototype, "hijriDate", 2);
+], PrayerHorizonCard.prototype, "_nextEvents", 2);
 __decorateClass([
   r5()
-], PrayerHorizonCard.prototype, "nextEvents", 2);
+], PrayerHorizonCard.prototype, "_qibla", 2);
 __decorateClass([
   r5()
-], PrayerHorizonCard.prototype, "currentTime", 2);
-__decorateClass([
-  r5()
-], PrayerHorizonCard.prototype, "theme", 2);
+], PrayerHorizonCard.prototype, "_theme", 2);
 PrayerHorizonCard = __decorateClass([
   t3("prayer-horizon-card")
 ], PrayerHorizonCard);
@@ -1208,7 +1199,7 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "prayer-horizon-card",
   name: "Prayer Horizon Card",
-  description: "Prayer times arc, Hijri date, Qibla compass and Islamic events",
+  description: "Prayer times, Hijri date, Islamic events and Qibla compass \u2014 auto-discovered from muslim_calendar device",
   preview: true
 });
 /*! Bundled license information:
