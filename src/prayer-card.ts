@@ -53,32 +53,41 @@ function cardinalDir(deg: number): string {
   return dirs[Math.round(deg / 22.5) * 22.5 % 360] || 'N';
 }
 
-// Find the entity prefix (e.g. "sensor.salat_maison") by locating a fajr entity.
-// Tries device-filtered candidates first, then falls back to all states.
-function findPrefix(hass: any, deviceId: string): string | null {
-  const allIds = Object.keys(hass.states || {});
-  let candidates = allIds;
+// Build a map of entity_id → unique_id for a given device.
+// Tries multiple strategies to handle different HA versions.
+function findDeviceEntities(hass: any, deviceId: string): Record<string, string> {
+  const result: Record<string, string> = {};
 
-  // Narrow to device entities if hass.entities is available
+  // Strategy 1: hass.entities (HA 2022.6+)
   if (hass.entities && typeof hass.entities === 'object') {
-    const byDevice = Object.entries(hass.entities as Record<string, any>)
-      .filter(([_, e]) => e?.device_id === deviceId)
-      .map(([id]) => id);
-    if (byDevice.length > 0) {
-      candidates = byDevice;
-    } else {
-      const byPlatform = Object.entries(hass.entities as Record<string, any>)
-        .filter(([_, e]) => e?.platform === 'muslim_calendar')
-        .map(([id]) => id);
-      if (byPlatform.length > 0) candidates = byPlatform;
+    for (const [entityId, entry] of Object.entries(hass.entities as Record<string, any>)) {
+      if (entry && entry.device_id === deviceId) {
+        result[entityId] = entry.unique_id || '';
+      }
     }
+    if (Object.keys(result).length > 0) return result;
   }
 
-  const fajrCandidates = candidates.filter(id => id.endsWith('_fajr'));
-  if (!fajrCandidates.length) return null;
-  // Pick the shortest to avoid iqamah_fajr, tomorrow_fajr, etc.
-  const fajr = fajrCandidates.reduce((a, b) => a.length <= b.length ? a : b);
-  return fajr.replace(/_fajr$/, '');
+  // Strategy 2: scan hass.entities for platform hint
+  if (hass.entities && typeof hass.entities === 'object') {
+    for (const [entityId, entry] of Object.entries(hass.entities as Record<string, any>)) {
+      if (entry && (entry.platform === 'muslim_calendar' || (entry.unique_id || '').startsWith('muslim_calendar_'))) {
+        result[entityId] = entry.unique_id || '';
+      }
+    }
+    if (Object.keys(result).length > 0) return result;
+  }
+
+  // Strategy 3: last resort — keyword match in entity_id
+  const PRAYER_IDS = ['fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha',
+                      'hijri', 'qibla', 'events'];
+  for (const [entityId] of Object.entries(hass.states as Record<string, any>)) {
+    const uid = entityId.replace('sensor.', '').replace('binary_sensor.', '');
+    if (PRAYER_IDS.some(k => entityId.includes(k))) {
+      result[entityId] = uid;
+    }
+  }
+  return result;
 }
 
 // ============================================================================
@@ -119,7 +128,7 @@ class PrayerHorizonCard extends LitElement {
   // --------------------------------------------------------------------------
 
   updated(changedProps: Map<string, unknown>) {
-    if ((changedProps.has('hass') || changedProps.has('_config')) && this.hass && this._config) {
+    if (changedProps.has('hass') && this._config) {
       this._loadFromDevice();
       this._detectTheme();
     }
@@ -148,22 +157,24 @@ class PrayerHorizonCard extends LitElement {
     const hass = this.hass;
     if (!hass || !this._config.device) return;
 
-    const prefix = findPrefix(hass, this._config.device);
-    if (!prefix) return;
+    const deviceEntities = findDeviceEntities(hass, this._config.device);
+    const ids = Object.keys(deviceEntities);
 
-    // All entities whose id starts with the prefix — scoped keyword search
-    const scoped = Object.keys(hass.states).filter(id => id.startsWith(prefix + '_'));
-    const scopedFind = (...kws: string[]) =>
-      scoped.find(id => kws.some(k => id.includes(k)));
+    // Helper: find entity_id whose unique_id OR entity_id includes any of the given keywords
+    const find = (...keywords: string[]) => ids.find(id =>
+      keywords.some(k => deviceEntities[id].includes(k) || id.includes(k))
+    );
+    const findExclude = (include: string, exclude: string) => ids.find(id =>
+      (deviceEntities[id].includes(include) || id.includes(include)) &&
+      !deviceEntities[id].includes(exclude) && !id.includes(exclude)
+    );
 
     // ----- Prayer times -----
     const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
     const times: Array<{ key: string; hhmm: string }> = [];
 
     for (const key of PRAYER_KEYS) {
-      // Try direct name first, fall back to keyword search within prefix scope
-      const directId = `${prefix}_${key}`;
-      const entityId = hass.states[directId] !== undefined ? directId : scopedFind(`_${key}`);
+      const entityId = find(`prayer_times_${key}`, `_prayer_${key}`, `_${key}_time`, `_${key}`);
       const hhmm = entityId ? toHHMM(hass.states[entityId]?.state ?? '') : '--:--';
       times.push({ key, hhmm });
     }
@@ -182,11 +193,11 @@ class PrayerHorizonCard extends LitElement {
     }));
 
     // ----- Hijri date -----
-    const hijriId = scoped.find(id => id.includes('hijri') && !id.includes('tomorrow'));
+    const hijriId = findExclude('hijri', 'tomorrow');
     this._hijriDate = hijriId ? (hass.states[hijriId]?.state ?? '') : '';
 
     // ----- Events -----
-    const eventsId = scopedFind('events');
+    const eventsId = find('events');
     if (eventsId) {
       const attrs = hass.states[eventsId]?.attributes ?? {};
       this._nextEvents = [];
@@ -203,7 +214,7 @@ class PrayerHorizonCard extends LitElement {
     }
 
     // ----- Qibla -----
-    const qiblaId = scopedFind('qibla');
+    const qiblaId = find('qibla');
     this._qibla = qiblaId ? (parseFloat(hass.states[qiblaId]?.state) || 0) : 0;
   }
 

@@ -840,24 +840,44 @@ function cardinalDir(deg) {
   };
   return dirs[Math.round(deg / 22.5) * 22.5 % 360] || "N";
 }
-function findPrefix(hass, deviceId) {
-  const allIds = Object.keys(hass.states || {});
-  let candidates = allIds;
+function findDeviceEntities(hass, deviceId) {
+  const result = {};
   if (hass.entities && typeof hass.entities === "object") {
-    const byDevice = Object.entries(hass.entities).filter(([_2, e5]) => e5?.device_id === deviceId).map(([id]) => id);
-    if (byDevice.length > 0) {
-      candidates = byDevice;
-    } else {
-      const byPlatform = Object.entries(hass.entities).filter(([_2, e5]) => e5?.platform === "muslim_calendar").map(([id]) => id);
-      if (byPlatform.length > 0)
-        candidates = byPlatform;
+    for (const [entityId, entry] of Object.entries(hass.entities)) {
+      if (entry && entry.device_id === deviceId) {
+        result[entityId] = entry.unique_id || "";
+      }
+    }
+    if (Object.keys(result).length > 0)
+      return result;
+  }
+  if (hass.entities && typeof hass.entities === "object") {
+    for (const [entityId, entry] of Object.entries(hass.entities)) {
+      if (entry && (entry.platform === "muslim_calendar" || (entry.unique_id || "").startsWith("muslim_calendar_"))) {
+        result[entityId] = entry.unique_id || "";
+      }
+    }
+    if (Object.keys(result).length > 0)
+      return result;
+  }
+  const PRAYER_IDS = [
+    "fajr",
+    "shuruq",
+    "dhuhr",
+    "asr",
+    "maghrib",
+    "isha",
+    "hijri",
+    "qibla",
+    "events"
+  ];
+  for (const [entityId] of Object.entries(hass.states)) {
+    const uid = entityId.replace("sensor.", "").replace("binary_sensor.", "");
+    if (PRAYER_IDS.some((k2) => entityId.includes(k2))) {
+      result[entityId] = uid;
     }
   }
-  const fajrCandidates = candidates.filter((id) => id.endsWith("_fajr"));
-  if (!fajrCandidates.length)
-    return null;
-  const fajr = fajrCandidates.reduce((a3, b3) => a3.length <= b3.length ? a3 : b3);
-  return fajr.replace(/_fajr$/, "");
+  return result;
 }
 var PrayerHorizonCard = class extends i4 {
   constructor() {
@@ -886,7 +906,7 @@ var PrayerHorizonCard = class extends i4 {
   // Lifecycle
   // --------------------------------------------------------------------------
   updated(changedProps) {
-    if ((changedProps.has("hass") || changedProps.has("_config")) && this.hass && this._config) {
+    if (changedProps.has("hass") && this._config) {
       this._loadFromDevice();
       this._detectTheme();
     }
@@ -911,16 +931,18 @@ var PrayerHorizonCard = class extends i4 {
     const hass = this.hass;
     if (!hass || !this._config.device)
       return;
-    const prefix = findPrefix(hass, this._config.device);
-    if (!prefix)
-      return;
-    const scoped = Object.keys(hass.states).filter((id) => id.startsWith(prefix + "_"));
-    const scopedFind = (...kws) => scoped.find((id) => kws.some((k2) => id.includes(k2)));
+    const deviceEntities = findDeviceEntities(hass, this._config.device);
+    const ids = Object.keys(deviceEntities);
+    const find = (...keywords) => ids.find(
+      (id) => keywords.some((k2) => deviceEntities[id].includes(k2) || id.includes(k2))
+    );
+    const findExclude = (include, exclude) => ids.find(
+      (id) => (deviceEntities[id].includes(include) || id.includes(include)) && !deviceEntities[id].includes(exclude) && !id.includes(exclude)
+    );
     const nowMins = (/* @__PURE__ */ new Date()).getHours() * 60 + (/* @__PURE__ */ new Date()).getMinutes();
     const times = [];
     for (const key of PRAYER_KEYS) {
-      const directId = `${prefix}_${key}`;
-      const entityId = hass.states[directId] !== void 0 ? directId : scopedFind(`_${key}`);
+      const entityId = find(`prayer_times_${key}`, `_prayer_${key}`, `_${key}_time`, `_${key}`);
       const hhmm = entityId ? toHHMM(hass.states[entityId]?.state ?? "") : "--:--";
       times.push({ key, hhmm });
     }
@@ -936,9 +958,9 @@ var PrayerHorizonCard = class extends i4 {
       time: hhmm,
       active: i5 === activeIdx
     }));
-    const hijriId = scoped.find((id) => id.includes("hijri") && !id.includes("tomorrow"));
+    const hijriId = findExclude("hijri", "tomorrow");
     this._hijriDate = hijriId ? hass.states[hijriId]?.state ?? "" : "";
-    const eventsId = scopedFind("events");
+    const eventsId = find("events");
     if (eventsId) {
       const attrs = hass.states[eventsId]?.attributes ?? {};
       this._nextEvents = [];
@@ -959,7 +981,7 @@ var PrayerHorizonCard = class extends i4 {
         }
       }
     }
-    const qiblaId = scopedFind("qibla");
+    const qiblaId = find("qibla");
     this._qibla = qiblaId ? parseFloat(hass.states[qiblaId]?.state) || 0 : 0;
   }
   // --------------------------------------------------------------------------
