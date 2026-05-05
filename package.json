@@ -4,8 +4,8 @@
   "description": "Lovelace card for Muslim Calendar — prayer times arc, Hijri date, next events, Qibla compass",
   "type": "module",
   "scripts": {
-    "build": "tsc && esbuild src/prayer-card.ts --bundle --outfile=dist/prayer-card.js --format=esm --target=es2020",
-    "dev": "tsc --watch & esbuild src/prayer-card.ts --bundle --outfile=dist/prayer-card.js --format=esm --target=es2020 --watch"
+    "build": "tsc && esbuild src/prayer-card.ts --bundle --outfile=dist/prayer-card.js --format=iife --target=es2020 --global-name=PrayerHorizonCard",
+    "dev": "esbuild src/prayer-card.ts --bundle --outfile=dist/prayer-card.js --format=iife --target=es2020 --global-name=PrayerHorizonCard --watch"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
