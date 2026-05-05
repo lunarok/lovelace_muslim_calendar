@@ -12,6 +12,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'Hijri Date',
     'Next Events': 'Next Events',
     'Qibla Direction': 'Qibla Direction',
+    'Qiblat': 'Qiblat',
   },
   fr: {
     'Fajr': 'Fajr',
@@ -24,6 +25,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'Date Hijri',
     'Next Events': 'Prochains événements',
     'Qibla Direction': 'Direction Qibla',
+    'Qiblat': 'Qiblat',
   },
   id: {
     'Fajr': 'Fajr',
@@ -36,6 +38,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'Tanggal Hijriah',
     'Next Events': 'Acara Berikutnya',
     'Qibla Direction': 'Arah Kiblat',
+    'Qiblat': 'Kiblat',
   },
   ms: {
     'Fajr': 'Fajr',
@@ -48,6 +51,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'Tarikh Hijri',
     'Next Events': 'Acara Akan Datang',
     'Qibla Direction': 'Arah Kiblat',
+    'Qiblat': 'Kiblat',
   },
   de: {
     'Fajr': 'Fadschr',
@@ -60,6 +64,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'Hidschri-Datum',
     'Next Events': 'Nächste Ereignisse',
     'Qibla Direction': 'Qibla-Richtung',
+    'Qiblat': 'Qibla',
   },
   tr: {
     'Fajr': 'Sabah (Fajr)',
@@ -72,6 +77,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'Hicri Tarih',
     'Next Events': 'Sonraki Etkinlikler',
     'Qibla Direction': 'Kıble Yönü',
+    'Qiblat': 'Kıble',
   },
   ar: {
     'Fajr': 'الفجر',
@@ -84,6 +90,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'التاريخ الهجري',
     'Next Events': 'الأحداث القادمة',
     'Qibla Direction': 'اتجاه القبلة',
+    'Qiblat': 'القبلة',
   },
   zh: {
     'Fajr': '晨礼 (Fajr)',
@@ -96,6 +103,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': '希吉莱日期',
     'Next Events': '下一个事件',
     'Qibla Direction': '朝向',
+    'Qiblat': '朝向',
   },
   it: {
     'Fajr': 'Fajr',
@@ -108,6 +116,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'Data Hijri',
     'Next Events': 'Prossimi Eventi',
     'Qibla Direction': 'Direzione Qibla',
+    'Qiblat': 'Qibla',
   },
   es: {
     'Fajr': 'Fayr',
@@ -120,6 +129,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'Fecha Hijri',
     'Next Events': 'Próximos Eventos',
     'Qibla Direction': 'Dirección Qibla',
+    'Qiblat': 'Qibla',
   },
   ur: {
     'Fajr': 'فجر',
@@ -132,6 +142,7 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'ہجری تاریخ',
     'Next Events': 'اگلے واقعات',
     'Qibla Direction': 'قبلہ کی سمت',
+    'Qiblat': 'قبلہ',
   },
   fa: {
     'Fajr': 'فجر',
@@ -144,5 +155,6 @@ export const TRANSLATIONS: Record<string, Record<string, string>> = {
     'Hijri Date': 'تاریخ هجری',
     'Next Events': 'رویدادهای بعدی',
     'Qibla Direction': 'جهت قبله',
+    'Qiblat': 'قبله',
   },
 };
