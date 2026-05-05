@@ -74,8 +74,11 @@ function findPrefix(hass: any, deviceId: string): string | null {
     }
   }
 
-  const fajr = candidates.find(id => id.endsWith('_fajr'));
-  return fajr ? fajr.replace(/_fajr$/, '') : null;
+  const fajrCandidates = candidates.filter(id => id.endsWith('_fajr'));
+  if (!fajrCandidates.length) return null;
+  // Pick the shortest to avoid iqamah_fajr, tomorrow_fajr, etc.
+  const fajr = fajrCandidates.reduce((a, b) => a.length <= b.length ? a : b);
+  return fajr.replace(/_fajr$/, '');
 }
 
 // ============================================================================

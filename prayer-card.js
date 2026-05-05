@@ -853,8 +853,11 @@ function findPrefix(hass, deviceId) {
         candidates = byPlatform;
     }
   }
-  const fajr = candidates.find((id) => id.endsWith("_fajr"));
-  return fajr ? fajr.replace(/_fajr$/, "") : null;
+  const fajrCandidates = candidates.filter((id) => id.endsWith("_fajr"));
+  if (!fajrCandidates.length)
+    return null;
+  const fajr = fajrCandidates.reduce((a3, b3) => a3.length <= b3.length ? a3 : b3);
+  return fajr.replace(/_fajr$/, "");
 }
 var PrayerHorizonCard = class extends i4 {
   constructor() {
