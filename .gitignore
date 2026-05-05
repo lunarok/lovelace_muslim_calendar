@@ -1,5 +1,6 @@
 node_modules/
-dist/prayer-card.js.map
+dist/
+*.js.map
 *.ts.map
 .DS_Store
 
